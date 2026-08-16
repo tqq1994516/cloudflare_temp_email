@@ -32,6 +32,8 @@ jobs:
 
       - name: Deploy Backend for ${{ github.ref_name }}
         run: |
+          # 强制把pnpm action路径放最前面，消除版本冲突
+          export PATH="${{ steps.pnpm-install.outputs.pnpm-directory }}:$PATH"
           pnpm --version
           
           export use_worker_assets=${{ secrets.USE_WORKER_ASSETS }}
@@ -55,14 +57,26 @@ jobs:
           export use_mail_wasm_parser=${{ secrets.BACKEND_USE_MAIL_WASM_PARSER }}
           
           cd worker/
-          printf '%s\n' "$WRANGLER_TOML_CONTENT" > wrangler.toml
-          
+          # 修复多行secret写入，避免printf丢失换行
+          cat <<< "$WRANGLER_TOML_CONTENT" > wrangler.toml
+          # 打印生成的文件，调试用，确认main字段是否存在
+          cat wrangler.toml
+
+          # pnpm11动态生成allowBuilds配置文件，彻底绕开环境变量与版本兼容问题
+          cat > pnpm-workspace.yaml <<'YAML'
+packages:
+  - '.'
+allowBuilds:
+  core-js-pure: true
+  esbuild: true
+  workerd: true
+YAML
+
           pnpm install --no-frozen-lockfile
           pnpm rebuild core-js-pure esbuild workerd
 
           if [ -n "$use_mail_wasm_parser" ]; then
             echo "Using mail-parser-wasm-worker"
-            # --allow‑build 仅用于 pnpm add
             pnpm add mail-parser-wasm-worker --allow-build=core-js-pure --allow-build=esbuild --allow-build=workerd
             git apply ../.github/config/mail-parser-wasm-worker.patch
             echo "Applied mail-parser-wasm-worker patch"
@@ -84,5 +98,3 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           WRANGLER_TOML_CONTENT: ${{ secrets.BACKEND_TOML }}
-          # pnpm11+ 环境变量，等价 allowBuilds，全局生效
-          PNPM_ALLOW_BUILDS: core-js-pure,esbuild,workerd
