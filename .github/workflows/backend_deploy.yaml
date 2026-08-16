@@ -37,7 +37,7 @@ jobs:
           
           if [ -n "$use_worker_assets" ]; then
             cd frontend/
-            pnpm install --no-frozen-lockfile
+            pnpm install --no-frozen-lockfile --allow-build=core-js-pure --allow-build=esbuild --allow-build=workerd
             if [ -n "$use_worker_assets_with_telegram" ]; then
               echo "Building with telegram pages"
               pnpm build:telegram:pages
