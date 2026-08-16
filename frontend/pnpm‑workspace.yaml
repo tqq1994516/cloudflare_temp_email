@@ -1,4 +1,6 @@
-allowBuilds:
-  core-js-pure: true
-  esbuild: true
-  workerd: true
+packages:
+  - '.'
+onlyBuiltDependencies:
+  - core-js-pure
+  - esbuild
+  - workerd
