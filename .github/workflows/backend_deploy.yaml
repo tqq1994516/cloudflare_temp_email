@@ -39,7 +39,7 @@ jobs:
           
           if [ -n "$use_worker_assets" ]; then
             cd frontend/
-            pnpm install --no-frozen-lockfile --allow-build=core-js-pure --allow-build=esbuild --allow-build=workerd
+            pnpm install --no-frozen-lockfile
             pnpm rebuild core-js-pure esbuild workerd
             if [ -n "$use_worker_assets_with_telegram" ]; then
               echo "Building with telegram pages"
@@ -57,11 +57,12 @@ jobs:
           cd worker/
           printf '%s\n' "$WRANGLER_TOML_CONTENT" > wrangler.toml
           
-          pnpm install --no-frozen-lockfile --allow-build=core-js-pure --allow-build=esbuild --allow-build=workerd
+          pnpm install --no-frozen-lockfile
           pnpm rebuild core-js-pure esbuild workerd
 
           if [ -n "$use_mail_wasm_parser" ]; then
             echo "Using mail-parser-wasm-worker"
+            # --allow‑build 仅用于 pnpm add
             pnpm add mail-parser-wasm-worker --allow-build=core-js-pure --allow-build=esbuild --allow-build=workerd
             git apply ../.github/config/mail-parser-wasm-worker.patch
             echo "Applied mail-parser-wasm-worker patch"
@@ -83,3 +84,5 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           WRANGLER_TOML_CONTENT: ${{ secrets.BACKEND_TOML }}
+          # pnpm11+ 环境变量，等价 allowBuilds，全局生效
+          PNPM_ALLOW_BUILDS: core-js-pure,esbuild,workerd
