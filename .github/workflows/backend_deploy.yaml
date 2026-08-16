@@ -14,6 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      WRANGLER_TOML_CONTENT: ${{ secrets.BACKEND_TOML }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -32,13 +36,12 @@ jobs:
 
       - name: Deploy Backend for ${{ github.ref_name }}
         run: |
-          # 强制把pnpm action路径放最前面，消除版本冲突
           export PATH="${{ steps.pnpm-install.outputs.pnpm-directory }}:$PATH"
           pnpm --version
-          
-          export use_worker_assets=${{ secrets.USE_WORKER_ASSETS }}
-          export use_worker_assets_with_telegram=${{ secrets.USE_WORKER_ASSETS_WITH_TELEGRAM }}
-          
+
+          export use_worker_assets="${{ secrets.USE_WORKER_ASSETS }}"
+          export use_worker_assets_with_telegram="${{ secrets.USE_WORKER_ASSETS_WITH_TELEGRAM }}"
+
           if [ -n "$use_worker_assets" ]; then
             cd frontend/
             pnpm install --no-frozen-lockfile
@@ -53,24 +56,21 @@ jobs:
             cd ..
           fi
 
-          export debug_mode=${{ secrets.DEBUG_MODE }}
-          export use_mail_wasm_parser=${{ secrets.BACKEND_USE_MAIL_WASM_PARSER }}
-          
+          export debug_mode="${{ secrets.DEBUG_MODE }}"
+          export use_mail_wasm_parser="${{ secrets.BACKEND_USE_MAIL_WASM_PARSER }}"
+
           cd worker/
-          # 修复多行secret写入，避免printf丢失换行
-          cat <<< "$WRANGLER_TOML_CONTENT" > wrangler.toml
-          # 打印生成的文件，调试用，确认main字段是否存在
+          echo "$WRANGLER_TOML_CONTENT" > wrangler.toml
           cat wrangler.toml
 
-          # pnpm11动态生成allowBuilds配置文件，彻底绕开环境变量与版本兼容问题
-          cat > pnpm-workspace.yaml <<'YAML'
+          cat > pnpm-workspace.yaml <<EOF
 packages:
   - '.'
 allowBuilds:
   core-js-pure: true
   esbuild: true
   workerd: true
-YAML
+EOF
 
           pnpm install --no-frozen-lockfile
           pnpm rebuild core-js-pure esbuild workerd
@@ -94,7 +94,3 @@ YAML
             fi
           fi
           echo "Deployed for tag ${{ github.ref_name }}"
-        env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          WRANGLER_TOML_CONTENT: ${{ secrets.BACKEND_TOML }}
